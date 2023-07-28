@@ -177,16 +177,17 @@ class RoadnetGraphBuilder:
 
     
     def export_Graph_edges_to_shapefile(self):
-
         edges_data = []
         for u, v, data in self.G.edges(data=True):
             geom = LineString([Point(self.G.nodes[u]["x"], self.G.nodes[u]["y"]),Point(self.G.nodes[v]["x"], self.G.nodes[v]["y"])])
             edges_data.append((geom,data))
-            #gdf.append({"id": data.get("id",""),"roadname": data.get("roadname",""), "startnode": data.get("startnode",""),"endnode": data.get("endnode",""),"roadlen": data.get("length",""),"geometry": line}, ignore_index=True)
-            #gdf.insert("id": data.get("id",""),"roadname": data.get("roadname",""), "startnode": data.get("startnode",""),"endnode": data.get("endnode",""),"roadlen": data.get("length",""),"geometry": line)
+        # convert the edge data to GeoDataFrame
         edges_gdf = gpd.GeoDataFrame(edges_data, columns=['geometry','attributes'], crs = 'EPSG:6583')
+        #convert the attributes to a new DataFrame and joined to the original DataFrame(the pd.Series can create the new attributes table)
         edges_gdf = edges_gdf.join(edges_gdf['attributes'].apply(pd.Series))
+        #then delete the old attributes
         edges_gdf = edges_gdf.drop(columns='attributes')
+        #save the GeoDataFrame to a shapefile
         edges_gdf.to_file("./result/Road_edges_shapefile.shp")
         logging.info("All the edges have been exported to the Shapefile.")
 
