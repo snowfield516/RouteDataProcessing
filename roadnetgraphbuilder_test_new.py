@@ -1,11 +1,13 @@
+import csv
 import geopandas as gpd
 import osmnx as ox
 import networkx as nx
-from  shapely.geometry import Point
+from  shapely.geometry import Point, LineString
 import matplotlib.pyplot as plt
 import logging
 import pickle
 from rtree import index
+import pandas as pd
 
 class RoadnetGraphBuilder:
 
@@ -157,16 +159,53 @@ class RoadnetGraphBuilder:
 
         return duplicate_edges
 
+    def export_Graph_Nodes_to_CSV(self):
+        with open("./result/nodes_data.csv", "w", newline="") as csvfile:
+            writer = csv.writer(csvfile)
+            # write the header
+            writer.writerow(["ID", "Label", "x", "y","nodeid"])  # 替换"Attribute1"和"Attribute2"为你的节点属性列名
+
+            # write the node data
+            for node_id, node_data in self.G.nodes(data=True):
+                node_label = node_data.get("label", "")
+                x = node_data.get("x", "")
+                y = node_data.get("y", "")
+                nodeid = node_data.get("nodeid","")
+                writer.writerow([node_id, node_label, x, y, nodeid])
+
+        logging.info("All the nodes have been exported to the CSV file.")
+
+    
+    def export_Graph_edges_to_shapefile(self):
+
+        edges_data = []
+        for u, v, data in self.G.edges(data=True):
+            geom = LineString([Point(self.G.nodes[u]["x"], self.G.nodes[u]["y"]),Point(self.G.nodes[v]["x"], self.G.nodes[v]["y"])])
+            edges_data.append((geom,data))
+            #gdf.append({"id": data.get("id",""),"roadname": data.get("roadname",""), "startnode": data.get("startnode",""),"endnode": data.get("endnode",""),"roadlen": data.get("length",""),"geometry": line}, ignore_index=True)
+            #gdf.insert("id": data.get("id",""),"roadname": data.get("roadname",""), "startnode": data.get("startnode",""),"endnode": data.get("endnode",""),"roadlen": data.get("length",""),"geometry": line)
+        edges_gdf = gpd.GeoDataFrame(edges_data, columns=['geometry','attributes'], crs = 'EPSG:6583')
+        edges_gdf = edges_gdf.join(edges_gdf['attributes'].apply(pd.Series))
+        edges_gdf = edges_gdf.drop(columns='attributes')
+        edges_gdf.to_file("./result/Road_edges_shapefile.shp")
+        logging.info("All the edges have been exported to the Shapefile.")
+
 if __name__ == '__main__':
     #load the shapefile data and convert to the graph data, saved to a GML file
     #model = RoadnetGraphBuilder("./data/testdata.shp")
     model = RoadnetGraphBuilder("./data/testdata_dissolve_name.shp")
     #model = RoadnetGraphBuilder("./data/roadnet_dissolved_by_name.shp")
-    model.convert_shapefile_to_graph()
+    #model.convert_shapefile_to_graph()
     #model.calculate_shortest_path(120,3)
 
     #load the saved graph data from GML file
-    #model.load_saved_graph()
+    model.load_saved_graph()
 
     #check the index
     #model.check_saved_index()
+
+    #export nodes to CSV
+    #model.export_Graph_Nodes_to_CSV()
+
+    #export edges to shapefile
+    model.export_Graph_edges_to_shapefile()
